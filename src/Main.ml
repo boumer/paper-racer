@@ -4,19 +4,34 @@ open Tea.Html
 
 type move = int * int
 
-type car = {
-  name: string;
-  color: string;
-  history: move list;
-}
+module Car = struct
+  type t = {
+    name: string;
+    color: string;
+    history: move list;
+  }
+  
+  let possibleNextMoves car =
+    let (xNext, yNext) =
+      match car.history with
+        | [] -> (0, 0)
+        | (x,y) :: [] -> (x + 1, y)
+        | (xLatest,yLatest) :: (xPrevious, yPrevious) :: _ -> (xLatest + (xLatest - xPrevious), yLatest + (yLatest - yPrevious))
+    in
+    [
+      (-1, -1); (0, -1); (1, -1);
+      (-1,  0); (0,  0); (1,  0);
+      (-1,  1); (0,  1); (1,  1);
+    ]
+    |> List.map (fun (x, y) -> x + xNext, y + yNext)
+end
 
 type model = {
-  cars: car list;
+  cars: Car.t list;
   terrain: int;
 }
 
 type msg =
-  | AddCar of car
   | MoveCar of string * move
   [@@bs.deriving {accessors}] 
 
@@ -31,9 +46,8 @@ let init () =
   (model, Tea.Cmd.none)
 
 let update model = function 
-  | AddCar car -> ({model with cars = car :: model.cars}, Tea.Cmd.none)
   | MoveCar (name, move) ->
-    let cars = List.map (fun car -> if car.name == name then {car with history = move :: car.history} else car) model.cars in
+    let cars = List.map (fun car -> if car.Car.name == name then {car with history = move :: car.history} else car) model.cars in
     ({model with cars}, Tea.Cmd.none)
 
 
@@ -43,7 +57,7 @@ let viewCars cars =
   let module Svg = Tea.Svg in
   let module SvgA = Tea.Svg.Attributes in
   let (@$) a b =  a (string_of_int b) in
-  let scale = 40 in
+  let scale = 30 in
   let scaler (x, y) = (x * scale, y * scale) in
   let viewCar car =
     let points = 
@@ -52,7 +66,7 @@ let viewCars cars =
       |> String.concat " "
     in
     let rotation =
-      match car.history with
+      match car.Car.history with
         | (xLast, yLast) :: (xPrevious, yPrevious) :: _ ->
           Js.Math.atan2 ~y:(float_of_int (yLast - yPrevious)) ~x:(float_of_int (xLast - xPrevious)) ()
           |> (fun x -> x *. 180. /. Js.Math._PI +. 90.)
@@ -69,25 +83,11 @@ let viewCars cars =
 
   in
   let viewPossibleMoves car =
-    let (xNext, yNext) =
-      match car.history with
-        | [] -> (0, 0)
-        | (x,y) :: [] -> (x + 1, y)
-        | (xLatest,yLatest) :: (xPrevious, yPrevious) :: _ -> (xLatest + (xLatest - xPrevious), yLatest + (yLatest - yPrevious))
-    in
-    let circles = 
-      [
-        (-1, -1); (0, -1); (1, -1);
-        (-1,  0); (0,  0); (1,  0);
-        (-1,  1); (0,  1); (1,  1);
-      ]
-      |> List.map (fun (x, y) -> x + xNext, y + yNext)
-      |> List.map scaler
-      |> List.map (fun (x, y) -> 
-        Svg.circle [SvgA.cx @$ x; SvgA.cy @$ y; SvgA.r @$ (scale / 5); SvgA.fill "rgba(0, 0, 255, 0.25)"] []
-      )
-    in
-    circles
+    Car.possibleNextMoves car
+    |> List.map scaler
+    |> List.map (fun (x, y) -> 
+      Svg.circle [SvgA.cx @$ x; SvgA.cy @$ y; SvgA.r @$ (scale / 5); SvgA.fill "rgba(0, 0, 255, 0.25)"] []
+    )
   in
   let viewHistory car =
     let rec pathFromMoves path moves =
@@ -97,7 +97,7 @@ let viewCars cars =
         | (x, y) :: tl -> pathFromMoves {j|$(path) $(x) $(y) L|j} tl
     in
     let path = 
-      List.rev_map scaler car.history
+      List.rev_map scaler car.Car.history
       |> pathFromMoves "M"
       |> (fun path -> Svg.path [SvgA.d path; SvgA.fill "none"; SvgA.stroke "black"; SvgA.strokeWidth "1"] [])
     in
@@ -107,7 +107,7 @@ let viewCars cars =
     (path :: circles)
   in
   let center = scale /2 in
-  Svg.svg [SvgA.width "600"; SvgA.height "600"] [
+  Svg.svg [SvgA.width "800"; SvgA.height "800"] [
     Svg.defs [] [
       Svg.pattern [SvgA.id "grid"; SvgA.width @$ scale; SvgA.height @$ scale; SvgA.patternUnits "userSpaceOnUse"] [
         Svg.rect [SvgA.width @$ scale; SvgA.height @$ scale;] [];
@@ -120,10 +120,22 @@ let viewCars cars =
       ((List.map viewHistory cars |> List.flatten) @ (List.map viewPossibleMoves cars |> List.flatten));
   ]
 
+let viewButtons car =
+  let buttons = 
+    Car.possibleNextMoves car
+    |> List.mapi (fun i move -> button [onClick (moveCar car.Car.name move)] [text (string_of_int i)])
+  in
+  div [] buttons
 
 let view model =
+  let viewButtonsForPlayer =
+    match model.cars with
+      | [] -> noNode
+      | car :: _ -> viewButtons car
+  in
   div [] [
     viewCars model.cars;
+    viewButtonsForPlayer;
   ]
 
 let main =
