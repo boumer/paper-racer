@@ -1,6 +1,4 @@
-This is a starter kit for bucklescript with [tea](https://github.com/OvermindDL1/bucklescript-tea). It uses [rollup.js](https://rollupjs.org/) to package the javascript and [serve](https://github.com/zeit/serve) to serve the release folder.
-
-# Organisation
+# Paper Racer
 
 * The bucklescript code goes into _src/*.ml_
 * The _release_ folder contains an _index.html_ and rollup bundles your js here in _main.js_
