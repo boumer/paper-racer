@@ -24,11 +24,22 @@ module Car = struct
       (-1,  1); (0,  1); (1,  1);
     ]
     |> List.map (fun (x, y) -> x + xNext, y + yNext)
+  
+  let createCar name color =
+    {
+      name;
+      color;
+      history = []
+    }
+
+  let addMove car move =
+    {car with history = move :: car.history}
 end
 
 type model = {
   cars: Car.t list;
   terrain: int;
+  currentPlayer: Car.t;
 }
 
 type msg =
@@ -36,24 +47,24 @@ type msg =
   [@@bs.deriving {accessors}] 
 
 let init () = 
+  let cars = [ Car.createCar "Thomas" "green"; Car.createCar "Michel" "blue"] in
   let model = {
-    cars = [
-      {name = "1"; color = "green"; history = [(3, 1); (1, 0); (0, 0)]};
-      {name = "2"; color = "red"; history = [(8, 12); (5, 11); (2, 10); (0, 10)]};
-    ];
+    cars;
     terrain = 0;
+    currentPlayer = List.hd cars;
   } in
   (model, Tea.Cmd.none)
 
 let update model = function 
   | MoveCar (name, move) ->
-    let cars = List.map (fun car -> if car.Car.name == name then {car with history = move :: car.history} else car) model.cars in
-    ({model with cars}, Tea.Cmd.none)
+    let cars = List.map (fun car -> if car.Car.name == name then Car.addMove car move else car) model.cars in
+    let currentPlayer = List.filter (fun car -> car != model.currentPlayer) model.cars |> List.hd in
+    ({model with cars; currentPlayer}, Tea.Cmd.none)
 
 
 let subscriptions _ = Tea.Sub.none
 
-let viewCars cars = 
+let viewCars cars currentPlayer = 
   let module Svg = Tea.Svg in
   let module SvgA = Tea.Svg.Attributes in
   let (@$) a b =  a (string_of_int b) in
@@ -117,7 +128,7 @@ let viewCars cars =
     Svg.rect [SvgA.width "100%"; SvgA.height "100%"; SvgA.fill "url(#grid)"] [];
     Svg.g [] (List.map viewCar cars);
     Svg.g [SvgA.transform {j|translate($(center),$(center))|j} ] 
-      ((List.map viewHistory cars |> List.flatten) @ (List.map viewPossibleMoves cars |> List.flatten));
+      ((List.map viewHistory cars |> List.flatten) @ (viewPossibleMoves currentPlayer));
   ]
 
 let viewButtons car =
@@ -128,14 +139,11 @@ let viewButtons car =
   div [] buttons
 
 let view model =
-  let viewButtonsForPlayer =
-    match model.cars with
-      | [] -> noNode
-      | car :: _ -> viewButtons car
-  in
+  let name = model.currentPlayer.Car.name in
   div [] [
-    viewCars model.cars;
-    viewButtonsForPlayer;
+    viewCars model.cars model.currentPlayer;
+    div [] [text {j|$(name) has to move|j}];
+    viewButtons model.currentPlayer;
   ]
 
 let main =
