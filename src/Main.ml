@@ -4,10 +4,31 @@ open Tea.Html
 
 type move = int * int
 
+module Rgba = struct
+  type t = int * int * int * float
+
+  let create r g b a =
+    match (r, g, b, a) with
+      | (r, g, b, a)  when 
+        (r <= 255 && r >= 0 && g <= 255 && g >= 0 && b <= 255 && b >= 0 && a <= 1. && a >= 0.)->
+          Some (r, g, b, a)
+      | _ -> None
+
+
+  let toString (r, g, b, a) = {j|rgba($(r),$(g),$(b),$(a)|j}
+
+  let shineThrough (r, g, b, a) amount = 
+    match (a -. amount) with
+      | a when (a <= 1. && a >= 0.) -> (r, g, b, a)
+      | _ -> (r, g, b, 0.)
+
+  let black = (0, 0, 0, 1.)
+end
+
 module Car = struct
   type t = {
     name: string;
-    color: string;
+    color: Rgba.t;
     history: move list;
   }
   
@@ -47,7 +68,9 @@ type msg =
   [@@bs.deriving {accessors}] 
 
 let init () = 
-  let cars = [ Car.createCar "Thomas" "green"; Car.createCar "Michel" "blue"] in
+  let blue = Rgba.create 0 0 255 1. |> Js.Option.default Rgba.black in
+  let green = Rgba.create 0 255 255 1. |> Js.Option.default Rgba.black in
+  let cars = [ Car.createCar "Thomas" blue; Car.createCar "Michel" green] in
   let model = {
     cars;
     terrain = 0;
@@ -89,16 +112,20 @@ let viewCars cars currentPlayer =
         | _ -> (0, 0)
     in
     Svg.g [ SvgA.transform {j|translate($(xTranslate),$(yTranslate)) rotate($(rotation),20,20) |j} ] [
-      Svg.polygon [SvgA.points points; SvgA.fill car.color] [];
+      Svg.polygon [SvgA.points points; SvgA.fill (Rgba.toString car.color)] [];
     ]
 
   in
   let viewPossibleMoves car =
     Car.possibleNextMoves car
     |> List.map scaler
-    |> List.map (fun (x, y) -> 
-      Svg.circle [SvgA.cx @$ x; SvgA.cy @$ y; SvgA.r @$ (scale / 5); SvgA.fill "rgba(0, 0, 255, 0.25)"] []
+    |> List.mapi (fun i (x, y) -> 
+      [
+        Svg.circle [SvgA.cx @$ x; SvgA.cy @$ y; SvgA.r @$ (scale / 5); SvgA.fill "rgba(0, 0, 255, 0.25)"] [];
+        Svg.text' [SvgA.x @$ x; SvgA.y @$ y; SvgA.textAnchor "middle"] [Svg.text @$ i + 1]
+      ]
     )
+    |> List.flatten
   in
   let viewHistory car =
     let rec pathFromMoves path moves =
@@ -132,18 +159,21 @@ let viewCars cars currentPlayer =
   ]
 
 let viewButtons car =
+  let background = Rgba.shineThrough car.Car.color 0.5 |> Rgba.toString in
   let buttons = 
     Car.possibleNextMoves car
-    |> List.mapi (fun i move -> button [onClick (moveCar car.Car.name move)] [text (string_of_int i)])
+    |> List.mapi (fun i move -> button [onClick (moveCar car.Car.name move); style "background" background] [text (string_of_int (i + 1))])
   in
-  div [] buttons
+  div [class' "button-grid"] buttons
 
 let view model =
   let name = model.currentPlayer.Car.name in
-  div [] [
+  main [] [
     viewCars model.cars model.currentPlayer;
-    div [] [text {j|$(name) has to move|j}];
-    viewButtons model.currentPlayer;
+    div [class' "controls"] [
+      div [] [text {j|$(name) has to move|j}];
+      viewButtons model.currentPlayer;
+    ]
   ]
 
 let main =
