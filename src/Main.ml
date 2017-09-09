@@ -17,7 +17,7 @@ module Rgba = struct
 
   let toString (r, g, b, a) = {j|rgba($(r),$(g),$(b),$(a)|j}
 
-  let shineThrough (r, g, b, a) amount = 
+  let transparentize (r, g, b, a) amount = 
     match (a -. amount) with
       | a when (a <= 1. && a >= 0.) -> (r, g, b, a)
       | _ -> (r, g, b, 0.)
@@ -159,7 +159,7 @@ let viewCars cars currentPlayer =
   ]
 
 let viewButtons car =
-  let background = Rgba.shineThrough car.Car.color 0.5 |> Rgba.toString in
+  let background = Rgba.transparentize car.Car.color 0.5 |> Rgba.toString in
   let buttons = 
     Car.possibleNextMoves car
     |> List.mapi (fun i move -> button [onClick (moveCar car.Car.name move); style "background" background] [text (string_of_int (i + 1))])
