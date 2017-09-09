@@ -50,7 +50,7 @@ module Car = struct
     {
       name;
       color;
-      history = []
+      history = [(0, 0)]
     }
 
   let addMove car move =
@@ -117,18 +117,22 @@ let viewCars cars currentPlayer =
 
   in
   let viewPossibleMoves car =
+    let dotColor = Rgba.transparentize car.Car.color 0.5 |> Rgba.toString in
     Car.possibleNextMoves car
     |> List.map scaler
     |> List.mapi (fun i (x, y) -> 
       [
-        Svg.circle [SvgA.cx @$ x; SvgA.cy @$ y; SvgA.r @$ (scale / 5); SvgA.fill "rgba(0, 0, 255, 0.25)"] [];
+        Svg.circle [SvgA.cx @$ x; SvgA.cy @$ y; SvgA.r @$ (scale / 5); SvgA.fill dotColor] [];
         Svg.text' [SvgA.x @$ x; SvgA.y @$ y; SvgA.textAnchor "middle"] [Svg.text @$ i + 1]
       ]
     )
     |> List.flatten
   in
   let viewHistory car =
+    let traceColor = Rgba.transparentize car.Car.color 0.5 |> Rgba.toString in
+    let dotColor = Rgba.transparentize car.Car.color 0.2 |> Rgba.toString in
     let rec pathFromMoves path moves =
+      Js.log moves;
       match moves with
         | [] -> path
         | (x, y) :: [] -> {j|$(path) $(x) $(y)|j}
@@ -137,10 +141,10 @@ let viewCars cars currentPlayer =
     let path = 
       List.rev_map scaler car.Car.history
       |> pathFromMoves "M"
-      |> (fun path -> Svg.path [SvgA.d path; SvgA.fill "none"; SvgA.stroke "black"; SvgA.strokeWidth "1"] [])
+      |> (fun path -> Svg.path [SvgA.d path; SvgA.fill "none"; SvgA.stroke traceColor; SvgA.strokeWidth "1"] [])
     in
     let circles = 
-      List.map (fun (x, y) -> Svg.circle [SvgA.cx @$ (x * scale); SvgA.cy @$ (y * scale); SvgA.r @$ (scale /5); SvgA.fill "black"] []) car.history
+      List.map (fun (x, y) -> Svg.circle [SvgA.cx @$ (x * scale); SvgA.cy @$ (y * scale); SvgA.r @$ (scale /5); SvgA.fill dotColor] []) car.history
     in
     (path :: circles)
   in
