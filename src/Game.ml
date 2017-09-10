@@ -6,7 +6,7 @@ open Car
 type model = {
   cars: Car.t list;
   terrain: int;
-  currentPlayer: Car.t;
+  currentPlayer: int;
 }
 
 type msg =
@@ -16,21 +16,19 @@ type msg =
 let startGame cars =
   match cars with
     | [] -> None
-    | hd :: _ -> 
+    | _ -> 
       Some {
         cars;
         terrain = 0;
-        currentPlayer = hd;
+        currentPlayer = 0;
       }
 
 
 let update model = function 
 | MoveCar (name, move) ->
     let cars = List.map (fun car -> if car.Car.name == name then Car.addMove car move else car) model.cars in
-    let currentPlayer = List.filter (fun car -> car != model.currentPlayer) model.cars |> List.hd in
+    let currentPlayer = (model.currentPlayer + 1) mod (List.length model.cars) in
     ({model with cars; currentPlayer}, Tea.Cmd.none)
-
-
 
 let viewCars cars currentPlayer = 
   let module Svg = Tea.Svg in
@@ -116,11 +114,12 @@ let viewButtons car =
   div [class' "button-grid"] buttons
 
 let view model =
-  let name = model.currentPlayer.Car.name in
+  let currentPlayer = List.nth model.cars model.currentPlayer in
+  let name = currentPlayer.Car.name in
   main [] [
-    viewCars model.cars model.currentPlayer;
+    viewCars model.cars currentPlayer;
     div [class' "controls"] [
       div [] [text {j|$(name) has to move|j}];
-      viewButtons model.currentPlayer;
+      viewButtons currentPlayer;
     ]
   ]
