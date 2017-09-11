@@ -10,6 +10,7 @@ and waitingModel = {
   players: Car.t list;
   error: string Js.Option.t;
   playerName: string;
+  color: string;
 }
 
 type model = {
@@ -18,7 +19,7 @@ type model = {
 
 let init () = 
   let cars = [] in
-  ! {currentPage = WaitingForPlayersPage {players = cars; error = None; playerName = ""}}
+  ! {currentPage = WaitingForPlayersPage {players = cars; error = None; playerName = ""; color = ""}}
 
 type msg =
   | StartGame 
@@ -26,6 +27,7 @@ type msg =
   | InitPageMsg of initPageMsg
 and initPageMsg =
   | UpdateName of string
+  | UpdateColor of string
   | CreatePlayer 
 
   [@@bs.deriving {accessors}] 
@@ -34,16 +36,18 @@ let initUpdate model msg =
   match msg with
     | UpdateName name ->
       {model with playerName = name}
+    | UpdateColor color ->
+      {model with color}
     | CreatePlayer ->
-      let blue = Rgba.create 0 0 255 1. |> Js.Option.default Rgba.black in
-      let player = Car.createCar model.playerName blue in
+      let color = Rgba.fromString model.color in
+      let player = Car.createCar model.playerName color in
       {model with players = player :: model.players; playerName = ""}
 
 let update model msg =
   match (msg, model.currentPage) with
     | (InitPageMsg msg', WaitingForPlayersPage waitingModel) ->
       let waitingModel = initUpdate waitingModel msg' in
-      ! {model with currentPage =WaitingForPlayersPage waitingModel}
+      ! {model with currentPage = WaitingForPlayersPage waitingModel}
     | (StartGame, WaitingForPlayersPage waitingModel) ->
         begin match Game.startGame waitingModel.players with
           | Some playingState ->
@@ -62,7 +66,7 @@ let viewWaiting map waitingModel =
   let open Tea.Html in
   let startButton =
     match waitingModel.players with
-      | [] -> noNode
+      | [] -> text "Create at least one player to start the game"
       | _ -> button [onClick startGame] [text "Start game"];
   in
   match waitingModel.error with
@@ -74,11 +78,12 @@ let viewWaiting map waitingModel =
       div [] [
         div [] [
           label [] [text "Name"];
-          input' [type' "text"; onChange (fun x -> map (updateName x)); value waitingModel.playerName] [];
-          button [onClick (map createPlayer)] [text ("Create: " ^ waitingModel.playerName)]
+          input' [type' "text"; onChange (fun text -> map (updateName text)); value waitingModel.playerName] [];
+          input' [type' "color"; onChange (fun color -> map (updateColor color))] [];
+          button [onClick (map createPlayer)] [text ("Create")]
         ];
         div [] [
-          text "Players:";
+          text "Created Players:";
           ul [] (List.map (fun player -> li [] [text player.Car.name]) waitingModel.players)
         ];
         startButton

@@ -23,7 +23,6 @@ let startGame cars =
         currentPlayer = 0;
       }
 
-
 let update model = function 
 | MoveCar (name, move) ->
     let cars = List.map (fun car -> if car.Car.name == name then Car.addMove car move else car) model.cars in

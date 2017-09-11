@@ -1,3 +1,13 @@
+let hexToRgb : string -> int array = [%bs.raw{|
+  function hexToRgb(hex) {
+    var bigint = parseInt(hex.slice(1), 16);
+    var r = (bigint >> 16) & 255;
+    var g = (bigint >> 8) & 255;
+    var b = bigint & 255;
+
+    return [r, g , b];
+  }
+|}] 
 module Rgba = struct
   type t = int * int * int * float
 
@@ -10,6 +20,9 @@ module Rgba = struct
 
 
   let toString (r, g, b, a) = {j|rgba($(r),$(g),$(b),$(a)|j}
+  let fromString color =
+    let [|r; g; b;|] = hexToRgb color in
+    (r, g, b, 1.)
 
   let transparentize (r, g, b, a) amount = 
     match (a -. amount) with
